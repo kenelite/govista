@@ -25,8 +25,7 @@ func NewToolbar(
 ) *Toolbar {
 	urlEntry := widget.NewEntry()
 	urlEntry.SetPlaceHolder("https://...")
-	urlEntry.Resize(fyne.NewSize(500, 3))
-	urlEntry.Wrapping = fyne.TextTruncate // manually enlarge
+	urlEntry.Resize(fyne.NewSize(800, urlEntry.MinSize().Height)) // enlarge entry directly
 
 	backBtn := widget.NewButton("◀", func() { onBack() })
 	forwardBtn := widget.NewButton("▶", func() { onForward() })
