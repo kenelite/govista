@@ -26,7 +26,7 @@ for PLATFORM in "${PLATFORMS[@]}"; do
   docker run --rm -v "$PWD":/app -w /app \
     -e GOOS=$GOOS -e GOARCH=$GOARCH -e CGO_ENABLED=1 -e CC=clang \
     golang:${GO_VERSION} \
-    go build -o ${OUTPUT_DIR}/${OUTPUT_NAME} .
+    go build -buildvcs=false -o ${OUTPUT_DIR}/${OUTPUT_NAME} .
 done
 
 echo "✅ All builds complete. Output in ./${OUTPUT_DIR}/"
