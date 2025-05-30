@@ -15,7 +15,6 @@ mkdir -p "$OUTPUT_DIR"
 
 platforms=(
   "linux amd64"
-  "linux arm64"
   "windows amd64"
   "darwin amd64"
   "darwin arm64"
@@ -28,7 +27,7 @@ for platform in "${platforms[@]}"; do
 
   if [[ "$GOOS" == "windows" ]]; then
     CGO_ENABLED=0
-    CC=""
+    CC=x86_64-w64-mingw32-gcc
     CXX=""
     EXT=".exe"
   else
