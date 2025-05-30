@@ -27,7 +27,7 @@ for platform in "${platforms[@]}"; do
 
   if [[ "$GOOS" == "windows" ]]; then
     CGO_ENABLED=0
-    CC=""
+    CC=x86_64-w64-mingw32-gcc
     CXX=""
     EXT=".exe"
   else
