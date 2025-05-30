@@ -43,6 +43,7 @@ func NewBrowser(win fyne.Window) *Browser {
 }
 
 func (b *Browser) NavigateTo(url string) {
+
 	if !strings.HasPrefix(url, "http") {
 		url = "https://" + url
 	}
@@ -69,10 +70,12 @@ func (b *Browser) NavigateTo(url string) {
 	}
 	html := string(data)
 
+	r := renderer.NewRenderer()
+
 	b.history = append(b.history, b.current)
 	b.current = url
 	b.forward = nil
-	b.window.SetContent(container.NewBorder(b.toolbar.Container(), nil, nil, nil, renderer.RenderHTML(html)))
+	b.window.SetContent(container.NewBorder(b.toolbar.Container(), nil, nil, nil, r.RenderHTML(html, "")))
 }
 
 func (b *Browser) GoBack() {

@@ -2,138 +2,123 @@ package renderer
 
 import (
 	"bytes"
-	"image"
-	"image/color"
-	"image/png"
-	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
 
 	fyne "fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/kenelite/govista/internal/cssparser"
+	"github.com/kenelite/govista/internal/resourceloader"
 )
 
-// RenderHTML parses raw HTML and returns a fyne.CanvasObject to display the content.
-func RenderHTML(htmlSrc string) fyne.CanvasObject {
-	doc, err := html.Parse(strings.NewReader(htmlSrc))
-	if err != nil {
-		return widget.NewLabel("Failed to parse HTML: " + err.Error())
-	}
+type Renderer struct{}
 
-	box := container.NewVBox()
-	walkNode(doc, box)
-	return container.NewScroll(box)
+func NewRenderer() *Renderer {
+	return &Renderer{}
 }
 
-func walkNode(n *html.Node, box *fyne.Container) {
-	if n.Type == html.ElementNode {
-		switch n.Data {
-		case "h1", "h2", "h3", "h4", "h5", "h6":
-			text := extractText(n)
-			txt := canvas.NewText(text, color.Black)
-			txt.TextStyle = fyne.TextStyle{Bold: true}
-			txt.TextSize = headerSize(n.Data)
-			box.Add(txt)
+func (r *Renderer) RenderHTML(htmlStr string, basePath string) fyne.CanvasObject {
+	doc, err := html.Parse(strings.NewReader(htmlStr))
+	if err != nil {
+		return widget.NewLabel("Failed to parse HTML")
+	}
 
-		case "p":
-			text := extractText(n)
-			box.Add(widget.NewLabel(text))
+	css := extractCSS(doc, basePath)
+	rules := cssparser.ParseCSS(css)
 
-		case "a":
+	body := findNode(doc, "body")
+	if body == nil {
+		return widget.NewLabel("No <body> tag found")
+	}
+
+	return r.renderNode(body, basePath, rules)
+}
+
+func extractCSS(n *html.Node, basePath string) string {
+	var css string
+	var walker func(*html.Node)
+	walker = func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "style" && node.FirstChild != nil {
+			css += node.FirstChild.Data
+		}
+		if node.Type == html.ElementNode && node.Data == "link" {
+			isCSS := false
 			href := ""
-			for _, attr := range n.Attr {
+			for _, attr := range node.Attr {
+				if attr.Key == "rel" && attr.Val == "stylesheet" {
+					isCSS = true
+				}
 				if attr.Key == "href" {
 					href = attr.Val
 				}
 			}
-			text := extractText(n)
-			if u, err := url.Parse(href); err == nil {
-				box.Add(widget.NewHyperlink(text, u))
-			} else {
-				box.Add(widget.NewLabel(text))
+			if isCSS && href != "" {
+				if strings.HasPrefix(href, "http") {
+					resp, err := http.Get(href)
+					if err == nil {
+						defer resp.Body.Close()
+						buf := new(bytes.Buffer)
+						buf.ReadFrom(resp.Body)
+						css += buf.String()
+					}
+				}
 			}
+		}
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			walker(c)
+		}
+	}
+	walker(n)
+	return css
+}
 
+func (r *Renderer) renderNode(n *html.Node, basePath string, rules cssparser.RuleSet) fyne.CanvasObject {
+	if n.Type == html.TextNode {
+		text := strings.TrimSpace(n.Data)
+		if text != "" {
+			return widget.NewLabel(text)
+		}
+		return nil
+	}
+	if n.Type == html.ElementNode {
+		switch n.Data {
+		case "p", "div", "span", "h1", "h2", "h3":
+			content := container.NewVBox()
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				obj := r.renderNode(c, basePath, rules)
+				if obj != nil {
+					content.Add(obj)
+				}
+			}
+			return content
 		case "img":
 			src := ""
 			for _, attr := range n.Attr {
 				if attr.Key == "src" {
 					src = attr.Val
+					break
 				}
 			}
-			if img := fetchImage(src); img != nil {
-				box.Add(canvas.NewImageFromImage(img))
+			if src != "" {
+				return resourceloader.LoadImage(src)
 			}
-
-		case "ul", "ol":
-			list := container.NewVBox()
-			for li := n.FirstChild; li != nil; li = li.NextSibling {
-				if li.Type == html.ElementNode && li.Data == "li" {
-					text := extractText(li)
-					list.Add(widget.NewLabel("• " + text))
-				}
-			}
-			box.Add(list)
 		}
 	}
+	return nil
+}
 
+func findNode(n *html.Node, tag string) *html.Node {
+	if n.Type == html.ElementNode && n.Data == tag {
+		return n
+	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		walkNode(c, box)
-	}
-}
-
-func extractText(n *html.Node) string {
-	var buf bytes.Buffer
-	var f func(*html.Node)
-	f = func(node *html.Node) {
-		if node.Type == html.TextNode {
-			buf.WriteString(node.Data)
-		}
-		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
+		if res := findNode(c, tag); res != nil {
+			return res
 		}
 	}
-	f(n)
-	return strings.TrimSpace(buf.String())
-}
-
-func headerSize(tag string) float32 {
-	switch tag {
-	case "h1":
-		return 24
-	case "h2":
-		return 20
-	case "h3":
-		return 18
-	default:
-		return 16
-	}
-}
-
-func fetchImage(src string) image.Image {
-	if !strings.HasPrefix(src, "http") {
-		return nil
-	}
-	resp, err := http.Get(src)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil
-	}
-	img, err := png.Decode(bytes.NewReader(data))
-	if err != nil {
-		img2, _, err2 := image.Decode(bytes.NewReader(data))
-		if err2 != nil {
-			return nil
-		}
-		return img2
-	}
-	return img
+	return nil
 }
