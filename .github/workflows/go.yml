@@ -27,14 +27,14 @@ jobs:
         go-version: '1.24.3'
 
     - name: Make build script executable
-      run: chmod +x build.sh
+      run: chmod +x build_gh.sh
 
     - name: Build with LLVM 17
       env:
         CC: clang-17
         CXX: clang++-17
         CGO_ENABLED: 1
-      run: ./build.sh
+      run: ./build_gh.sh
 
     - name: Run Go tests
       run: go test -v ./...
