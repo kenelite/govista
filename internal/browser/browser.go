@@ -13,6 +13,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const (
+	UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
 type Browser struct {
 	window  fyne.Window
 	toolbar *layout.Toolbar
@@ -48,8 +52,7 @@ func (b *Browser) NavigateTo(url string) {
 		b.content.SetText("Failed to create request: " + err.Error())
 		return
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-
+	req.Header.Set("User-Agent", UA)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
