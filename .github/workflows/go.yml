@@ -1,7 +1,4 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-name: Go
+name: Go Build and Test with LLVM 17
 
 on:
   push:
@@ -10,19 +7,34 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install LLVM 17
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-17 lld-17 llvm-17-dev
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-17 100
 
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.24.3'
 
-    - name: Build
-      run: bash build.sh
+    - name: Make build script executable
+      run: chmod +x build.sh
 
-    - name: Test
+    - name: Build with LLVM 17
+      env:
+        CC: clang-17
+        CXX: clang++-17
+        CGO_ENABLED: 1
+      run: ./build.sh
+
+    - name: Run Go tests
       run: go test -v ./...
