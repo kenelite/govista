@@ -17,6 +17,16 @@ mkdir -p $OUTPUT_DIR
 
 echo "Building $APP_NAME for multiple platforms..."
 
+
+if [ "$(uname)" = "Darwin" ]; then
+  export CGO_CFLAGS="-arch x86_64"
+  export CGO_LDFLAGS="-arch x86_64"
+else
+  unset CGO_CFLAGS
+  unset CGO_LDFLAGS
+fi
+
+
 for PLATFORM in "${PLATFORMS[@]}"; do
   IFS="/" read -r GOOS GOARCH <<< "$PLATFORM"
   OUTPUT_NAME=$APP_NAME-$GOOS-$GOARCH
