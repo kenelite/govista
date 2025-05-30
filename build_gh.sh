@@ -41,11 +41,11 @@ for platform in "${platforms[@]}"; do
   echo "Building for $GOOS/$GOARCH (CGO_ENABLED=$CGO_ENABLED)..."
 
   OUTPUT_NAME="govista-${GOOS}-${GOARCH}${EXT}"
-
   env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=$CGO_ENABLED CC=$CC CXX=$CXX \
     go build -ldflags "-X main.version=$VERSION" -o "$OUTPUT_DIR/$OUTPUT_NAME" main.go
 
   echo "Built $OUTPUT_NAME"
+  
 done
 
 echo "All builds finished in $OUTPUT_DIR"
